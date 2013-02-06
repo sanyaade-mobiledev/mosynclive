@@ -29,6 +29,7 @@ using namespace MAUtil;
  */
 class MyMoblet : public HybridMoblet, public ButtonListener
 {
+private:
 	VerticalLayout *mVerticalLayout;
 	HorizontalLayout *mHorizontalLayout;
 	Button *mReloadButton;
@@ -37,7 +38,7 @@ class MyMoblet : public HybridMoblet, public ButtonListener
 
 public:
 	MyMoblet() {
-		url = "http://jsbin.com/ebidab/1";
+		url = "http://jsbin.com/ebidab/3";
 
 		initialize();
 
@@ -75,7 +76,7 @@ public:
 		mWebView = new WebView();
 		mWebView -> fillSpaceHorizontally();
 		mWebView -> fillSpaceVertically();
-
+	
 		mVerticalLayout = new VerticalLayout();
 		mVerticalLayout -> fillSpaceHorizontally();
 		mVerticalLayout -> fillSpaceVertically();
@@ -84,27 +85,27 @@ public:
 		mHorizontalLayout -> fillSpaceHorizontally();
 		mHorizontalLayout -> fillSpaceVertically();
 		mHorizontalLayout -> wrapContentVertically();
-
+	
 		mUrlField = new EditBox();
 		mUrlField -> setText(url);
 		mUrlField -> fillSpaceHorizontally();
-
+	
 		mReloadButton = new Button();
 		mReloadButton -> setText("Reload");
 		mReloadButton -> addButtonListener(this);
-
+	
 		mVerticalLayout -> addChild(mWebView);
 		mVerticalLayout -> addChild(mHorizontalLayout);
-
+	
 		mHorizontalLayout -> addChild(mUrlField);
 		mHorizontalLayout -> addChild(mReloadButton);
-
+	
 		// Create and show the screen that holds the WebView.
 		mScreen = new Screen();
 		mScreen -> setMainWidget(mVerticalLayout);
 		mScreen -> show();
-}
-
+	}
+	
 	/**
 	 * Display a page in the WebView of this moblet.
 	 * @param url Url of page to open.
@@ -112,14 +113,14 @@ public:
 	void showPage(const MAUtil::String& url) {
 		// Extract files system and perform other initialisation.
 		// initialize();
-
+	
 		// Open the page.
 		getWebView()->openURL(url);
 	}
 
-    void buttonClicked(Widget* button) {
+	void buttonClicked(Widget* button) {
 		showPage(mUrlField -> getText()); // url jsbin
-    }
+	}
 
 };
 
