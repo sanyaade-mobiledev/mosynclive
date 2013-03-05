@@ -15,9 +15,12 @@
 #include <NativeUI/VerticalLayout.h>
 #include <NativeUI/HorizontalLayout.h>
 #include <NativeUI/EditBox.h>
+//#include <NativeUI/EditBoxListener.h>
 #include <NativeUI/Button.h>
 #include <NativeUI/ButtonListener.h>
+#include <NativeUI/ImageButton.h>
 #include <MAUtil/String.h>
+#include <mastring.h>
 
 // Namespaces we want to access.
 using namespace NativeUI; // WebView widget.
@@ -25,103 +28,139 @@ using namespace Wormhole; // Wormhole library.
 using namespace MAUtil;
 
 /**
- * The application class.
+ * This class provides a simple webview that loads
+ * the webpage at the specified url. It saves the
+ * most recent entered url.
  */
-class MyMoblet : public HybridMoblet, public ButtonListener
-{
+class MyMoblet : public HybridMoblet, public ButtonListener {
+
 private:
-	VerticalLayout *mVerticalLayout;
-	HorizontalLayout *mHorizontalLayout;
-	Button *mReloadButton;
-	EditBox *mUrlField;
-	String url;
+    VerticalLayout *mVerticalLayout;
+    HorizontalLayout *mHorizontalLayout;
+    Button *mReloadButton;
+    ImageButton *mAboutIcon;
+    EditBox *mUrlField;
+    const String DEFAULT_URL;
 
 public:
-	MyMoblet() {
-		url = "http://jsbin.com/ebidab/3";
+    MyMoblet() : DEFAULT_URL("Insert url here") {
+        initialize();
+        String url = DEFAULT_URL;
+        String fileName = mFileUtil->getLocalPath() + "LastUrl.txt";
 
-		initialize();
+        // Get the most recently used url.
+        bool success = mFileUtil->readTextFromFile(
+                fileName,
+                url);
+        mUrlField->setText(url);
 
-		// Show the start page.
-		showPage(url); // url jsbin
+        if (success) showPage(url);
 
-		// Set the sound used by the PhoneGap beep notification API.
-		// BEEP_WAV is defined in file Resources/Resources.lst.
-		setBeepSound(BEEP_WAV);
-	}
+        // debug
+        lprintfln("@@@ Filename is %s", fileName.c_str());
+    }
 
-	void initialize() {
-//		if (mInitialized) { return; }
-//
-//		mInitialized = true;
+    void initialize() {
+        createUI();
+        extractFileSystem();
+        enableWebViewMessages();
 
-		createUI();
+        // Initialize the message handler. All messages from
+        // JavaScript are routed through this handler.
+        mMessageHandler->initialize(this);
+    }
 
-		// Extract files in LocalFiles folder to the device.
-		extractFileSystem();
+    /**
+     * Creates the main UI elements.
+     */
+    void createUI() {
+        // Create and configure the WebView.
+        mWebView = new WebView();
+        mWebView -> fillSpaceHorizontally();
+        mWebView -> fillSpaceVertically();
 
-		// Enable message sending from JavaScript to C++.
-		enableWebViewMessages();
+        // Layouts.
+        mVerticalLayout = new VerticalLayout();
+        mHorizontalLayout = new HorizontalLayout();
+        mHorizontalLayout -> wrapContentVertically();
 
-		// Initialize the message handler. All messages from
-		// JavaScript are routed through this handler.
-		mMessageHandler->initialize(this);
-	}
+        mUrlField = new EditBox();
+        mUrlField -> fillSpaceHorizontally();
+        // can be used to move scroll the bottom up
+        // when showing the keyboard
+        // mUrlField -> addEditBoxListener(this);
 
-	/**
-	 * Creates the main UI elements, but does not connect them.
-	 */
-	void createUI()	{
-		// Create and configure the WebView.
-		mWebView = new WebView();
-		mWebView -> fillSpaceHorizontally();
-		mWebView -> fillSpaceVertically();
-	
-		mVerticalLayout = new VerticalLayout();
-		mVerticalLayout -> fillSpaceHorizontally();
-		mVerticalLayout -> fillSpaceVertically();
+        mReloadButton = new Button();
+        mReloadButton->setText("Reload");
+        mReloadButton->addButtonListener(this);
+        mReloadButton->setHeight(mUrlField->getHeight());
 
-		mHorizontalLayout = new HorizontalLayout();
-		mHorizontalLayout -> fillSpaceHorizontally();
-		mHorizontalLayout -> fillSpaceVertically();
-		mHorizontalLayout -> wrapContentVertically();
-	
-		mUrlField = new EditBox();
-		mUrlField -> setText(url);
-		mUrlField -> fillSpaceHorizontally();
-	
-		mReloadButton = new Button();
-		mReloadButton -> setText("Reload");
-		mReloadButton -> addButtonListener(this);
-	
-		mVerticalLayout -> addChild(mWebView);
-		mVerticalLayout -> addChild(mHorizontalLayout);
-	
-		mHorizontalLayout -> addChild(mUrlField);
-		mHorizontalLayout -> addChild(mReloadButton);
-	
-		// Create and show the screen that holds the WebView.
-		mScreen = new Screen();
-		mScreen -> setMainWidget(mVerticalLayout);
-		mScreen -> show();
-	}
-	
-	/**
-	 * Display a page in the WebView of this moblet.
-	 * @param url Url of page to open.
-	 */
-	void showPage(const MAUtil::String& url) {
-		// Extract files system and perform other initialisation.
-		// initialize();
-	
-		// Open the page.
-		getWebView()->openURL(url);
-	}
+        mAboutIcon = new ImageButton();
+        mAboutIcon->addButtonListener(this);
+        mAboutIcon->setBackgroundImage(INFO_ICON);
+        mAboutIcon->setSize(mReloadButton->getHeight(),mReloadButton->getHeight());
+        //mInfoIcon->setScaleMode(IMAGE_SCALE_PRESERVE_ASPECT);
 
-	void buttonClicked(Widget* button) {
-		showPage(mUrlField -> getText()); // url jsbin
-	}
+        mVerticalLayout->addChild(mHorizontalLayout);
+        mVerticalLayout->addChild(mWebView);
 
+        mHorizontalLayout->addChild(mUrlField);
+        mHorizontalLayout->addChild(mReloadButton);
+        mHorizontalLayout->addChild(mAboutIcon);
+
+        // Create and show the screen that holds the WebView.
+        mScreen = new Screen();
+        mScreen->setMainWidget(mVerticalLayout);
+        mScreen->show();
+    }
+
+    /**
+     * Display a page in the WebView of this moblet.
+     * @param url   Url of page to open.
+     */
+    void showPage(const MAUtil::String& url) {
+        // Open the page.
+        getWebView()->openURL(url);
+
+        // Test, runs custom HTML and Javascript in the webview.
+        /*
+            getWebView()->setHtml("<html>hello world!</html>");
+            getWebView()->callJS("document.body.innerHTML = 'ciao';");
+            getWebView()->callJS("var color = '#' + (Math.random() * 0xFFFFFF + 0x1000000).toString(16).substr(1,6); document.body.style.background = color;");
+         */
+    }
+
+    /**
+     * React upon a click on the button reload.
+     * @param url   Url of page to open.
+     */
+    void buttonClicked(Widget* button) {
+        if (button == mReloadButton) {
+            String url = mUrlField->getText();
+            if (url == DEFAULT_URL) {
+                // invalid url
+                return;
+            }
+
+            // Save the server address on file.
+            mFileUtil->writeTextToFile(
+                    mFileUtil->getLocalPath() + "LastUrl.txt",
+                    url);
+
+            showPage(url);
+            mUrlField->hideKeyboard();
+
+        } else if (button == mAboutIcon) {
+            //Show the info screen
+            maMessageBox("MoSync Live", "Load web pages live via jsbin.com");
+        }
+    }
+
+    //void editBoxEditingDidBegin(EditBox* editBox) {
+        // move the vertical layout up so that it is
+        // visible when the keyboard shows
+        //mVerticalLayout->setTopPosition(0)
+    //}
 };
 
 /**
@@ -129,8 +168,7 @@ public:
  * Here an instance of the MyMoblet class is created and
  * the program enters the main event loop.
  */
-extern "C" int MAMain()
-{
-	(new MyMoblet())->enterEventLoop();
-	return 0;
+extern "C" int MAMain() {
+    (new MyMoblet())->enterEventLoop();
+    return 0;
 }

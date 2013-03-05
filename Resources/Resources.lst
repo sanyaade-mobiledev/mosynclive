@@ -3,4 +3,6 @@
 .include "LocalFiles.bin"
 .res BEEP_WAV
 .media "audio/x-wav", "beep.wav"
+.res INFO_ICON
+.image "info.png"
 .eof
